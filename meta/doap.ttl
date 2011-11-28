@@ -1,0 +1,23 @@
+# This file contains general metadata about the project.
+
+@prefix :        <http://usefulinc.com/ns/doap#> .
+@prefix dc:      <http://purl.org/dc/terms/> .
+@prefix foaf:    <http://xmlns.com/foaf/0.1/> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+
+<http://purl.org/NET/cpan-uri/dist/Object-Stash/project>
+	a               :Project ;
+	:programming-language "Perl" ;
+	:name           "Object-Stash" ;
+	:shortdesc      "provides a Catalyst-like \"stash\" method for your class" ;
+	:homepage       <https://metacpan.org/release/Object-Stash> ;
+	:download-page  <https://metacpan.org/release/Object-Stash> ;
+	:bug-database   <http://rt.cpan.org/Dist/Display.html?Queue=Object-Stash> ;
+	:created        "2011-11-28"^^xsd:date ;
+	:license        <http://dev.perl.org/licenses/> ;
+	:developer      [ a foaf:Person ; foaf:name "Toby Inkster" ; foaf:mbox <mailto:tobyink@cpan.org> ] .
+
+<http://dev.perl.org/licenses/>
+	dc:title        "the same terms as the perl 5 programming language system itself" .
+
