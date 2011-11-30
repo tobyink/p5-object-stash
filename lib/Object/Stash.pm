@@ -6,7 +6,7 @@ use utf8;
 
 BEGIN {
 	$Object::Stash::AUTHORITY = 'cpan:TOBYINK';
-	$Object::Stash::VERSION   = '0.001';
+	$Object::Stash::VERSION   = '0.002';
 }
 
 use Carp qw/croak/;
@@ -14,7 +14,11 @@ use Hash::FieldHash qw/fieldhashes/;
 use Scalar::Util qw/blessed/;
 use Sub::Name qw/subname/;
 
-fieldhashes \my (%known_stashes);
+my %known_stashes;
+my %Stashes;
+BEGIN {
+	fieldhashes \%known_stashes, \%Stashes;
+}
 
 sub import
 {
@@ -54,9 +58,7 @@ sub is_stash
 	return;
 }
 
-{
-	fieldhashes \my (%Stashes);
-	
+{	
 	sub _stash
 	{
 		my ($stashname, $self, @args) = @_;
