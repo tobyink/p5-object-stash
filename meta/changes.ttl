@@ -27,3 +27,14 @@ dist:v_0-002
 		dcs:item   [ rdfs:label "Pretty important fieldhashes compile-time-versus-run-time fix." ; a dcs:Bugfix ] ;
 		] .
 
+dist:project :release dist:v_0-003 .
+dist:v_0-003
+	a               :Version ;
+	dc:issued       "2011-12-01"^^xsd:date ;
+	:revision       "0.003"^^xsd:string ;
+	:file-release   <http://backpan.cpan.org/authors/id/T/TO/TOBYINK/Object-Stash-0.003.tar.gz> ;
+	dcs:changeset [
+		dcs:versus dist:v_0-002 ;
+		dcs:item   [ rdfs:label "List correct dependencies." ; a dcs:Packaging ]
+		] .
+
