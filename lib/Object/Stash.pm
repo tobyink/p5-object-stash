@@ -6,7 +6,7 @@ use utf8;
 
 BEGIN {
 	$Object::Stash::AUTHORITY = 'cpan:TOBYINK';
-	$Object::Stash::VERSION   = '0.003';
+	$Object::Stash::VERSION   = '0.005';
 }
 
 use Carp qw/croak/;
@@ -36,7 +36,11 @@ sub import
 			push @{$args{-method}}, $arg;
 		}
 	}
-	$args{-method} = ['stash'] if !exists $args{-method};
+	$args{-method} //= ['stash'];
+	$args{-type}   //= 'hashref';
+	
+	croak sprintf("Stash type '%s' is unknown.", $args{-type})
+		unless $args{-type} =~ m{^ hashref | object $}ix;
 	
 	my $caller = $args{-package} // caller;
 	
@@ -44,8 +48,21 @@ sub import
 	{
 		no strict 'refs';
 		my $name = "$caller\::$method";
-		*$name = my $ref = subname($name, sub { unshift @_, $name; goto &_stash; });
+		*$name = my $ref = subname($name, sub { unshift @_, $name, lc $args{-type}; goto &_stash; });
 		$known_stashes{ $ref } = $name;
+
+		if (lc $args{-type} eq 'object')
+		{
+			my $name_autoload = $name . '::AUTOLOAD';
+			my $autoload = sub :lvalue
+			{
+				my ($func) = (${$name_autoload} =~ /::([^:]+)$/);
+				my $self = shift;
+				$self->{$func} = shift if @_;
+				$self->{$func};
+			};
+			*$name_autoload = subname($name_autoload, $autoload);			
+		}
 	}
 }
 
@@ -61,12 +78,16 @@ sub is_stash
 {	
 	sub _stash
 	{
-		my ($stashname, $self, @args) = @_;
+		my ($stashname, $type, $self, @args) = @_;
 		
-		my %set;
+		my (%set, @retrieve);
 		if (scalar @args == 1 and ref $args[0] eq 'HASH')
 		{
 			%set = %{ $args[0] };
+		}
+		elsif (scalar @args == 1 and ref $args[0] eq 'ARRAY')
+		{
+			@retrieve = @{ $args[0] };
 		}
 		elsif (scalar @args % 2 == 0)
 		{
@@ -80,11 +101,21 @@ sub is_stash
 		return unless (defined wantarray or @args);
 		
 		my $stash = $Stashes{ $self }{ $stashname };
-		$stash = $Stashes{ $self }{ $stashname } = {} unless defined $stash;
-		
+		unless (defined $stash)
+		{
+			$stash = $Stashes{ $self }{ $stashname } 
+			       = ($type eq 'object' ? (bless {}, $stashname) : {});
+		}
+			
 		while (my ($k, $v) = each %set)
 		{
 			$stash->{$k} = $v;
+		}
+		
+		if (@retrieve)
+		{
+			my @return = map { $stash->{$_} } @retrieve;
+			return wantarray ? @return : \@return;
 		}
 		
 		return $stash;
@@ -115,6 +146,16 @@ Object::Stash - provides a Catalyst-like "stash" method for your class
  $obj->data({foo => 1, bar => 2}); # same
  p $obj->data;                     # hashref with keys 'foo', 'bar'
  say $obj->data->{foo};            # says '1'
+ 
+ # Retrieve multiple values
+ my @values = $obj->data(['foo', 'bar']);
+ say $values[0];                   # says '1'
+ say $values[1];                   # says '2'
+ 
+ # Or in scalar context
+ my $values = $obj->data(['foo', 'bar']);
+ say $values->[0];                 # says '1'
+ say $values->[1];                 # says '2'
 
 =head1 DESCRIPTION
 
@@ -123,6 +164,10 @@ hashref for storing arbitrary data associated with the object. This is
 arguably a little hackish - the proper solution might be to create a slot
 for each piece of information you wish to store, with appropriate accessor
 methods. But often hackish will do.
+
+(And there are non-hackish ways of using Object::Stash. Take a look at
+L<Web::Magic> which uses a private stash - named with a leading underscore -
+and provides public methods for accessing various things stored inside it.)
 
 Object::Stash sets up one or more stash methods for your class. How these
 methods are named depends on how Object::Stash is imported. Object::Stash
@@ -193,6 +238,50 @@ likely to remain the default.)
 Thanks to L<Hash::FieldHash>, an object's stashes I<should> get automatically
 garbage collected once the object itself is destroyed, unless you've
 maintained your own references to the stashes.
+
+=head2 Stash Objects
+
+While stashes are usually hashrefs, there is also an option to make stashes
+themselves blessed objects. It's best to illustrate this with an example
+
+ {
+   package MyClass;
+   use Object::New;
+   use Object::Stash 'data', -type => 'object';
+ }
+ 
+ # All this stuff from SYNOPSIS still works...
+ use feature 'say';
+ use Data::Printer qw(p);
+ my $obj = MyClass->new;
+ p $obj->data;                     # an empty hashref
+ $obj->data(foo => 1, bar => 2);   # sets values in the 'data' stash
+ $obj->data({foo => 1, bar => 2}); # same
+ say $obj->data->{foo};            # says '1'
+ 
+ my @values = $obj->data(['foo', 'bar']);
+ say $values[0];                   # says '1'
+ say $values[1];                   # says '2'
+ 
+ my $values = $obj->data(['foo', 'bar']);
+ say $values->[0];                 # says '1'
+ say $values->[1];                 # says '2'
+ 
+ # But now you can retrieve data using accessor methods...
+ say $obj->data->foo;              # says '1'
+ 
+ # The accessors work as not just getters, but setters...
+ $obj->data->foo(99);
+ 
+ # The accessors can be treated as lvalues...
+ $obj->data->foo = 100;
+ $obj->data->foo++;
+ 
+ # Cool, huh?
+ say $obj->data->{foo};            # says '101'
+ 
+ # In case you were wondering...
+ say ref $obj->data;               # says 'Object::Stash::data'
 
 =head1 BUGS
 
