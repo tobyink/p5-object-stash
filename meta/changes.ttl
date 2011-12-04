@@ -56,7 +56,7 @@ dist:v_0-004
 		dcs:item   [ rdfs:label "Update to newer Module::Package::RDF." ; a dcs:Packaging ]
 		] .
 
-dist:project :release dist:v_0-005
+dist:project :release dist:v_0-005 .
 dist:v_0-005
 	a               :Version ;
 	dc:issued       "2011-12-03"^^xsd:date ;
