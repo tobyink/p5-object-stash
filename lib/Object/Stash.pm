@@ -9,6 +9,8 @@ BEGIN {
 	$Object::Stash::VERSION   = '0.005';
 }
 
+use base qw/Object::Role/;
+
 use Carp qw/croak/;
 use Hash::FieldHash qw/fieldhashes/;
 use Scalar::Util qw/blessed/;
@@ -24,31 +26,20 @@ sub import
 {
 	my ($invocant, @args) = @_;
 	
-	my %args;
-	while (defined(my $arg = shift @args))
-	{
-		if ($arg =~ /^-/)
-		{
-			$args{$arg} = shift @args;
-		}
-		else
-		{
-			push @{$args{-method}}, $arg;
-		}
-	}
+	my ($caller, %args) = __PACKAGE__->parse_arguments(-method => @args);
 	$args{-method} //= ['stash'];
 	$args{-type}   //= 'hashref';
 	
 	croak sprintf("Stash type '%s' is unknown.", $args{-type})
 		unless $args{-type} =~ m{^ hashref | object $}ix;
 	
-	my $caller = $args{-package} // caller;
+	__PACKAGE__->register_consumer($caller);
 	
 	for my $method (@{$args{-method}})
 	{
 		no strict 'refs';
 		my $name = "$caller\::$method";
-		*$name = my $ref = subname($name, sub { unshift @_, $name, lc $args{-type}; goto &_stash; });
+		*$name = my $ref = subname($name, sub { unshift @_, $name, lc $args{-type}; goto &_internals; });
 		$known_stashes{ $ref } = $name;
 
 		if (lc $args{-type} eq 'object')
@@ -76,7 +67,7 @@ sub is_stash
 }
 
 {	
-	sub _stash
+	sub _internals
 	{
 		my ($stashname, $type, $self, @args) = @_;
 		
