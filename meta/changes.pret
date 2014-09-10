@@ -67,3 +67,10 @@ dist:v_0-005
 		dcs:item   [ rdfs:label "Retrieve multiple values from a stash by passing it an arrayref." ; a dcs:Addition ] ;
 		dcs:item   [ rdfs:label "Blessed stashes with getters/setters." ; a dcs:Addition ]
 		] .
+
+`Object-Stash 0.006 cpan:TOBYINK`
+	issued    2014-09-10;
+	changeset [
+		item "Switch to Dist::Inkt."^^Packaging;
+	].
+

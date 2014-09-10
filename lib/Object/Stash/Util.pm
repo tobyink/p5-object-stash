@@ -7,7 +7,7 @@ use utf8;
 our @EXPORT_OK;
 BEGIN {
 	$Object::Stash::AUTHORITY = 'cpan:TOBYINK';
-	$Object::Stash::VERSION   = '0.005';
+	$Object::Stash::VERSION   = '0.006';
 	
 	@EXPORT_OK = qw/
 		has_stash make_method make_stash

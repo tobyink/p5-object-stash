@@ -6,7 +6,7 @@ use utf8;
 
 BEGIN {
 	$Object::Stash::AUTHORITY = 'cpan:TOBYINK';
-	$Object::Stash::VERSION   = '0.005';
+	$Object::Stash::VERSION   = '0.006';
 }
 
 use base qw/Object::Role/;
