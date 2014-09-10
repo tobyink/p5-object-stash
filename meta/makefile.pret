@@ -1,9 +1,0 @@
-@prefix deps:  <http://ontologi.es/doap-deps#> .
-
-<http://purl.org/NET/cpan-uri/dist/Object-Stash/project>
-	deps:runtime-requirement         [ deps:on "Scalar::Util"^^deps:CpanId ];
-	deps:runtime-requirement         [ deps:on "Carp"^^deps:CpanId ];
-	deps:runtime-requirement         [ deps:on "Sub::Name"^^deps:CpanId ];
-	deps:runtime-requirement         [ deps:on "Hash::FieldHash"^^deps:CpanId ];
-	deps:test-requirement            [ deps:on "Test::More 0.61"^^deps:CpanId ].
-
