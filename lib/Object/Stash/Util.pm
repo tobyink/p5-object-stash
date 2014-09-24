@@ -4,46 +4,33 @@ use 5.010;
 use strict;
 use utf8;
 
-our @EXPORT_OK;
-BEGIN {
-	$Object::Stash::AUTHORITY = 'cpan:TOBYINK';
-	$Object::Stash::VERSION   = '0.006';
-	
-	@EXPORT_OK = qw/
-		has_stash make_method make_stash
-		/;
-	
-	require Object::Role;
-	require Object::Stash;
-}
+our $AUTHORITY = 'cpan:TOBYINK';
+our $VERSION   = '0.006';
 
-use Carp qw/croak/;
+use Object::Stash   qw//;
+use Carp            qw/ croak /;
+use Sub::Util       qw/ set_subname /;
 
-use base qw/Exporter Object::Role/;
-
-our $caller_level = 0;
+use Exporter::Shiny qw/ has_stash make_method make_stash /;
+our @EXPORT = 'has_stash';
 
 sub make_method
 {
+	my $package = shift;
 	my $stash   = shift;
 	my $method  = shift;
 	my $options = { @_ };
-	my $package;
 
 	if ($stash =~ m{^(.+)::([^:]+)$})
 	{
 		$package = $1;
 		$stash   = $2;
 	}
-	else
-	{
-		$package = caller($caller_level);
-	}
 	
 	my $stash_coderef = do {
 		no strict 'refs';
 		\&{ "$package\::$stash" };
-		};
+	};
 
 	my $slot    = $options->{'slot'} // $method;
 	my $default = sub { undef };
@@ -72,25 +59,24 @@ sub make_method
 			$hash->{$slot};
 		} ;
 	
-	__PACKAGE__ -> install_method(
-		$method => $coderef,
-		do { my $caller = caller($caller_level) },
-		);
+	;
+	
+	__PACKAGE__->_exporter_install_sub(
+		$method,
+		{},
+		{ into => $package },
+		set_subname("$package\::$method", $coderef),
+	);
 }
 
 sub make_stash
 {
-	my ($stash, @args) = @_;
-	my $package;
+	my ($package, $stash, @args) = @_;
 
 	if ($stash =~ m{^(.+)::([^:]+)$})
 	{
 		$package = $1;
 		$stash   = $2;
-	}
-	else
-	{
-		$package = caller($caller_level);
 	}
 	
 	no strict 'refs';
@@ -98,38 +84,43 @@ sub make_stash
 		unless Object::Stash::is_stash(\&{"$package\::$stash"});
 }
 
-sub has_stash
+sub _generate_has_stash
 {
-	my ($stash_name, %args) = @_;
-	my $old_caller_level;
-	local $caller_level = $old_caller_level + 1;
+	shift;
+	my ($name, $args, $globals) = @_;
+	my $package = $globals->{into};
 	
-	make_stash($stash_name, -type => ($args{isa} // 'object'));
-	
-	if (ref $args{handles} eq 'ARRAY')
+	return sub
 	{
-		my @handles = @{ $args{handles} };
-		while (@handles)
+		my ($stash_name, %args) = @_;
+		
+		make_stash($package, $stash_name, -type => ($args{isa} // 'object'));
+		
+		if (ref $args{handles} eq 'ARRAY')
 		{
-			my $method = shift @handles;
-			my $opts   = (ref $handles[0] eq 'HASH') ?  shift(@handles) : {};
-			make_method($stash_name, $method, %$opts);
+			my @handles = @{ $args{handles} };
+			while (@handles)
+			{
+				my $method = shift @handles;
+				my $opts   = (ref $handles[0] eq 'HASH') ?  shift(@handles) : {};
+				make_method($package, $stash_name, $method, %$opts);
+			}
 		}
-	}
-	elsif (ref $args{handles} eq 'HASH')
-	{
-		my %handles = %{ $args{handles} };
-		while (my ($method, $opts) = each %handles)
+		elsif (ref $args{handles} eq 'HASH')
 		{
-			make_method($stash_name, $method, %$opts);
+			my %handles = %{ $args{handles} };
+			while (my ($method, $opts) = each %handles)
+			{
+				make_method($package, $stash_name, $method, %$opts);
+			}
 		}
+		elsif (!ref $args{handles})
+		{
+			make_method($package, $stash_name, $args{handles});
+		}
+		
+		return;
 	}
-	elsif (!ref $args{handles})
-	{
-		make_method($stash_name, $args{handles});
-	}
-	
-	return;
 }
 
 __PACKAGE__
@@ -137,7 +128,7 @@ __END__
 
 =head1 NAME
 
-Object::Stash - provides a Catalyst-like "stash" method for your class
+Object::Stash::Util - antler syntax for Object::Stash
 
 =head1 SYNOPSIS
 
@@ -192,7 +183,7 @@ currently supported:
    'foo'  => {},
    'bar'  => { is => 'ro' },
    'baz'  => {},
-   }
+ }
 
 or an arrayref like:
 
@@ -200,7 +191,7 @@ or an arrayref like:
    'foo',
    'bar'  => { is => 'ro' },
    'baz',
-   ]
+ ]
 
 or if you only want to handle one method, can just be a string:
 
@@ -240,9 +231,9 @@ Future versions may add other Moose-inspired options here, such as C<isa>.
 
 =over
 
-=item C<< make_stash($stash_name, %opts) >>
+=item C<< make_stash($package_name, $stash_name, %opts) >>
 
-=item C<< make_method($stash_name, $method_name, %opts) >>
+=item C<< make_method($package_name, $stash_name, $method_name, %opts) >>
 
 =back
 
@@ -263,7 +254,7 @@ Toby Inkster E<lt>tobyink@cpan.orgE<gt>.
 
 =head1 COPYRIGHT AND LICENCE
 
-This software is copyright (c) 2012 by Toby Inkster.
+This software is copyright (c) 2012, 2014 by Toby Inkster.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

@@ -1,1 +1,8 @@
+@prefix : <http://ontologi.es/doap-deps#>.
 
+`Object-Stash`
+	:runtime-requirement [ :on "Exporter::Shiny 0.040"^^:CpanId ];
+	:runtime-requirement [ :on "Hash::FieldHash"^^:CpanId ];
+	:runtime-requirement [ :on "Sub::Util"^^:CpanId ];
+	:test-requirement    [ :on "Test::More 0.96"^^:CpanId ];
+	:runtime-requirement [ :on "perl 5.010"^^:CpanId ].

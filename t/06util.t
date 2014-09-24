@@ -35,8 +35,8 @@ use Test::More tests => 25;
 
 my $obj = Local::Example->new;
 
-use Data::Printer;
-p $obj;
+#use Data::Printer;
+#p $obj;
 
 can_ok
 	'Local::Example',

@@ -9,52 +9,96 @@ BEGIN {
 	$Object::Stash::VERSION   = '0.006';
 }
 
-use base qw/Object::Role/;
+use Exporter::Shiny our @EXPORT = qw/ stash /;
 
 use Carp qw/croak/;
 use Hash::FieldHash qw/fieldhashes/;
 use Scalar::Util qw/blessed/;
-use Sub::Name qw/subname/;
+use Sub::Util qw/set_subname/;
 
 my %known_stashes;
 my %Stashes;
 BEGIN {
 	fieldhashes \%known_stashes, \%Stashes;
-}
+};
 
 sub import
 {
-	my ($invocant, @args) = @_;
+	my $me = shift;
+	my @args;
+	my $opts = ref($_[0]) ? shift : {};
+	$opts->{into}    //= caller;
+	$opts->{replace} //= 1;
 	
-	my ($caller, %args) = __PACKAGE__->parse_arguments(-method => @args);
-	$args{-method} //= ['stash'];
-	$args{-type}   //= 'hashref';
-	
-	croak sprintf("Stash type '%s' is unknown.", $args{-type})
-		unless $args{-type} =~ m{^ hashref | object $}ix;
-	
-	__PACKAGE__->register_consumer($caller);
-	
-	for my $method (@{$args{-method}})
-	{
-		no strict 'refs';
-		my $name = "$caller\::$method";
-		*$name = my $ref = subname($name, sub { unshift @_, $name, lc $args{-type}; goto &_internals; });
-		$known_stashes{ $ref } = $name;
-
-		if (lc $args{-type} eq 'object')
-		{
-			my $name_autoload = $name . '::AUTOLOAD';
-			my $autoload = sub :lvalue
-			{
-				my ($func) = (${$name_autoload} =~ /::([^:]+)$/);
-				my $self = shift;
-				$self->{$func} = shift if @_;
-				$self->{$func};
-			};
-			*$name_autoload = subname($name_autoload, $autoload);			
+	while (@_) {
+		my $arg = shift;
+		if (!ref $arg and $arg eq '-type') {
+			$opts->{type} = shift;
+			next;
 		}
+		if (!ref $arg and $arg eq '-method') {
+			push @args, ref($_[0]) ? @{+shift} : shift;
+			next;
+		}
+		if (!ref $arg and $arg eq '-package') {
+			$opts->{into} = shift;
+			next;
+		}
+		push @args, $arg;
 	}
+	
+	@_ = ($me, $opts, @args);
+	goto \&Exporter::Tiny::import;
+}
+
+sub _generate_stash
+{
+	my $invocant = shift;
+	my ($name, $args, $globals) = @_;
+	
+	my $type = lc($args->{type} || $globals->{type} || 'hashref');
+	Exporter::Tiny::_croak("Stash type '%s' is unknown.", $type)
+		unless $type =~ m{^ hashref | object $}x;
+	
+	my $method = $args->{-as} || $name;
+	unless (ref($name) eq q(SCALAR)) {
+		my ($prefix) = grep defined, $args->{-prefix}, $globals->{prefix}, q();
+		my ($suffix) = grep defined, $args->{-suffix}, $globals->{suffix}, q();
+		$method = "$prefix$method$suffix";
+	}
+	$method = $globals->{into} . "::$method";
+	
+	my $coderef = set_subname(
+		$method,
+		sub {
+			unshift @_, $method, $type;
+			&_internals;
+		},
+	);
+	
+	$known_stashes{ $coderef } = $method;
+	
+	if ($type eq 'object')
+	{
+		no strict qw(refs);
+		my $name_autoload = $method . '::AUTOLOAD';
+		my $autoload = sub :lvalue
+		{
+			my ($func) = (${$name_autoload} =~ /::([^:]+)$/);
+			my $self = shift;
+			$self->{$func} = shift if @_;
+			$self->{$func};
+		};
+		*$name_autoload = set_subname($name_autoload, $autoload);			
+	}
+
+	return $coderef;
+}
+
+sub _exporter_fail
+{
+	my $me = shift;
+	$_[0] => $me->_generate_stash(@_);
 }
 
 sub is_stash
